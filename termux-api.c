@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/endian.h>
+// #include <sys/endian.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -25,7 +25,7 @@
 #define TERMUX_API_PACKAGE_VERSION "0.58.0"
 
 #ifndef PREFIX
-# define PREFIX "/data/data/com.termux/files/usr"
+#define PREFIX "/data/data/com.termux/files/usr"
 #endif
 
 #define LISTEN_SOCKET_ADDRESS "com.termux.api://listen"
@@ -33,9 +33,9 @@
 /* passes the arguments to the plugin via the unix socket, falling
  * back to exec_am_broadcast() if that doesn't work
  */
-_Noreturn void contact_plugin(int argc, char** argv,
-                                 char* input_address_string,
-                                 char* output_address_string)
+_Noreturn void contact_plugin(int argc, char **argv,
+                              char *input_address_string,
+                              char *output_address_string)
 {
     // Redirect stdout to /dev/null (but leave stderr open):
     close(STDOUT_FILENO);
@@ -46,8 +46,7 @@ _Noreturn void contact_plugin(int argc, char** argv,
     // ignore SIGPIPE, so am will be called when the connection is closed unexpectedly
     struct sigaction sigpipe_action = {
         .sa_handler = SIG_IGN,
-        .sa_flags = 0
-    };
+        .sa_flags = 0};
     sigaction(SIGPIPE, &sigpipe_action, NULL);
 
     // Try to connect over the listen socket first if running on Android `< 14`.
@@ -60,35 +59,43 @@ _Noreturn void contact_plugin(int argc, char** argv,
     // the app process to deliver the intent.
     // - https://github.com/termux/termux-api/issues/638#issuecomment-1813233924
     int listenfd = -1;
-    #ifdef __ANDROID__
-        if (android_get_device_api_level() < 34) {
-            listenfd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
-        }
-    #endif
-    if (listenfd != -1) {
-        struct sockaddr_un listen_addr = { .sun_family = AF_UNIX };
-        memcpy(listen_addr.sun_path+1, LISTEN_SOCKET_ADDRESS, strlen(LISTEN_SOCKET_ADDRESS));
-        if (connect(listenfd, (struct sockaddr*) &listen_addr, sizeof(sa_family_t) + strlen(LISTEN_SOCKET_ADDRESS) + 1) == 0) {
+#ifdef __ANDROID__
+    if (android_get_device_api_level() < 34)
+    {
+        listenfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    }
+#endif
+    if (listenfd != -1)
+    {
+        struct sockaddr_un listen_addr = {.sun_family = AF_UNIX};
+        memcpy(listen_addr.sun_path + 1, LISTEN_SOCKET_ADDRESS, strlen(LISTEN_SOCKET_ADDRESS));
+        if (connect(listenfd, (struct sockaddr *)&listen_addr, sizeof(sa_family_t) + strlen(LISTEN_SOCKET_ADDRESS) + 1) == 0)
+        {
             socklen_t optlen = sizeof(struct ucred);
             // check the uid to see if the socket is actually provided by the plugin
             struct ucred cred;
-            if (getsockopt(listenfd, SOL_SOCKET, SO_PEERCRED, &cred, &optlen) == 0 && cred.uid == getuid()) {
+            if (getsockopt(listenfd, SOL_SOCKET, SO_PEERCRED, &cred, &optlen) == 0 && cred.uid == getuid())
+            {
 
                 const char insock_str[] = "--es socket_input \"";
                 const char outsock_str[] = "--es socket_output \"";
                 const char method_str[] = "--es api_method \"";
 
                 int len = 0;
-                len += sizeof(insock_str)-1 + strlen(output_address_string)+2;
-                len += sizeof(outsock_str)-1 + strlen(input_address_string)+2;
-                len += sizeof(method_str)-1 + strlen(argv[1])+2;
-                for (int i = 2; i<argc; i++) {
-                    len += strlen(argv[i])+1;
-                    if (strcmp(argv[i], "--es") == 0 || strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--esa") == 0) {
+                len += sizeof(insock_str) - 1 + strlen(output_address_string) + 2;
+                len += sizeof(outsock_str) - 1 + strlen(input_address_string) + 2;
+                len += sizeof(method_str) - 1 + strlen(argv[1]) + 2;
+                for (int i = 2; i < argc; i++)
+                {
+                    len += strlen(argv[i]) + 1;
+                    if (strcmp(argv[i], "--es") == 0 || strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--esa") == 0)
+                    {
                         len += 2; // the string extra has to be enclosed in "
                     }
-                    for (int a = 0; a<strlen(argv[i]); a++) {
-                        if (argv[i][a] == '"') {
+                    for (int a = 0; a < strlen(argv[i]); a++)
+                    {
+                        if (argv[i][a] == '"')
+                        {
                             len += 1; // " has to be escaped, so one character more.
                             /* This assumes " is only present in
                             string extra arguments, but that is
@@ -98,13 +105,13 @@ _Noreturn void contact_plugin(int argc, char** argv,
                     }
                 }
 
-                char* buffer = malloc(len);
+                char *buffer = malloc(len);
 
                 int offset = 0;
-                memcpy(buffer+offset, insock_str, sizeof(insock_str)-1);
-                offset += sizeof(insock_str)-1;
+                memcpy(buffer + offset, insock_str, sizeof(insock_str) - 1);
+                offset += sizeof(insock_str) - 1;
 
-                memcpy(buffer+offset, output_address_string, strlen(output_address_string));
+                memcpy(buffer + offset, output_address_string, strlen(output_address_string));
                 offset += strlen(output_address_string);
 
                 buffer[offset] = '"';
@@ -112,10 +119,10 @@ _Noreturn void contact_plugin(int argc, char** argv,
                 buffer[offset] = ' ';
                 offset++;
 
-                memcpy(buffer+offset, outsock_str, sizeof(outsock_str)-1);
-                offset += sizeof(outsock_str)-1;
+                memcpy(buffer + offset, outsock_str, sizeof(outsock_str) - 1);
+                offset += sizeof(outsock_str) - 1;
 
-                memcpy(buffer+offset, input_address_string, strlen(input_address_string));
+                memcpy(buffer + offset, input_address_string, strlen(input_address_string));
                 offset += strlen(input_address_string);
 
                 buffer[offset] = '"';
@@ -123,10 +130,10 @@ _Noreturn void contact_plugin(int argc, char** argv,
                 buffer[offset] = ' ';
                 offset++;
 
-                memcpy(buffer+offset, method_str, sizeof(method_str)-1);
-                offset += sizeof(method_str)-1;
+                memcpy(buffer + offset, method_str, sizeof(method_str) - 1);
+                offset += sizeof(method_str) - 1;
 
-                memcpy(buffer+offset, argv[1], strlen(argv[1]));
+                memcpy(buffer + offset, argv[1], strlen(argv[1]));
                 offset += strlen(argv[1]);
 
                 buffer[offset] = '"';
@@ -134,30 +141,38 @@ _Noreturn void contact_plugin(int argc, char** argv,
                 buffer[offset] = ' ';
                 offset++;
 
-                for (int i = 2; i<argc; i++) {
-                    if (strcmp(argv[i], "--es") == 0 || strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--esa") == 0) {
-                        memcpy(buffer+offset, argv[i], strlen(argv[i]));
+                for (int i = 2; i < argc; i++)
+                {
+                    if (strcmp(argv[i], "--es") == 0 || strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--esa") == 0)
+                    {
+                        memcpy(buffer + offset, argv[i], strlen(argv[i]));
                         offset += strlen(argv[i]);
                         buffer[offset] = ' ';
                         offset++;
                         i++;
-                        if (i < argc) {
-                            memcpy(buffer+offset, argv[i], strlen(argv[i]));
+                        if (i < argc)
+                        {
+                            memcpy(buffer + offset, argv[i], strlen(argv[i]));
                             offset += strlen(argv[i]);
                             buffer[offset] = ' ';
                             offset++;
                         }
                         i++;
-                        if (i < argc) {
+                        if (i < argc)
+                        {
                             buffer[offset] = '"';
                             offset++;
-                            for (int a = 0; a<strlen(argv[i]); a++) {
-                                if (argv[i][a] == '"') {
+                            for (int a = 0; a < strlen(argv[i]); a++)
+                            {
+                                if (argv[i][a] == '"')
+                                {
                                     buffer[offset] = '\\';
                                     offset++;
                                     buffer[offset] = '"';
                                     offset++;
-                                } else {
+                                }
+                                else
+                                {
                                     buffer[offset] = argv[i][a];
                                     offset++;
                                 }
@@ -167,8 +182,10 @@ _Noreturn void contact_plugin(int argc, char** argv,
                             buffer[offset] = ' ';
                             offset++;
                         }
-                    } else {
-                        memcpy(buffer+offset, argv[i], strlen(argv[i]));
+                    }
+                    else
+                    {
+                        memcpy(buffer + offset, argv[i], strlen(argv[i]));
                         offset += strlen(argv[i]);
                         buffer[offset] = ' ';
                         offset++;
@@ -180,10 +197,12 @@ _Noreturn void contact_plugin(int argc, char** argv,
                 bool err = false;
                 // transmit the size
                 int totransmit = 2;
-                void* transmit = &netlen;
-                while (totransmit > 0) {
+                void *transmit = &netlen;
+                while (totransmit > 0)
+                {
                     int ret = send(listenfd, transmit, totransmit, 0);
-                    if (ret == -1) {
+                    if (ret == -1)
+                    {
                         err = true;
                         break;
                     }
@@ -191,12 +210,15 @@ _Noreturn void contact_plugin(int argc, char** argv,
                 }
 
                 // transmit the argument list
-                if (! err) {
+                if (!err)
+                {
                     totransmit = len;
                     transmit = buffer;
-                    while (totransmit > 0) {
+                    while (totransmit > 0)
+                    {
                         int ret = send(listenfd, transmit, totransmit, 0);
-                        if (ret == -1) {
+                        if (ret == -1)
+                        {
                             err = true;
                             break;
                         }
@@ -204,14 +226,17 @@ _Noreturn void contact_plugin(int argc, char** argv,
                     }
                 }
 
-                if (! err) {
+                if (!err)
+                {
                     char readbuffer[100];
                     int ret;
                     bool first = true;
                     err = true;
-                    while ((ret = read(listenfd, readbuffer, 99)) > 0) {
+                    while ((ret = read(listenfd, readbuffer, 99)) > 0)
+                    {
                         // if a single null byte is received as the first message, the call was successful
-                        if (ret == 1 && readbuffer[0] == 0 && first) {
+                        if (ret == 1 && readbuffer[0] == 0 && first)
+                        {
                             err = false;
                             break;
                         }
@@ -225,7 +250,8 @@ _Noreturn void contact_plugin(int argc, char** argv,
                 }
 
                 // if everything went well, there is no need to call am
-                if (! err) {
+                if (!err)
+                {
                     exit(0);
                 }
             }
@@ -236,9 +262,9 @@ _Noreturn void contact_plugin(int argc, char** argv,
 }
 
 // Function which execs "am broadcast ..".
-_Noreturn void exec_am_broadcast(int argc, char** argv,
-                                 char* input_address_string,
-                                 char* output_address_string)
+_Noreturn void exec_am_broadcast(int argc, char **argv,
+                                 char *input_address_string,
+                                 char *output_address_string)
 {
     // Redirect stdout to /dev/null (but leave stderr open):
     close(STDOUT_FILENO);
@@ -247,7 +273,7 @@ _Noreturn void exec_am_broadcast(int argc, char** argv,
     close(STDIN_FILENO);
 
     int const extra_args = 15; // Including ending NULL.
-    char** child_argv = malloc((sizeof(char*)) * (argc + extra_args));
+    char **child_argv = malloc((sizeof(char *)) * (argc + extra_args));
 
     child_argv[0] = "am";
     child_argv[1] = "broadcast";
@@ -267,7 +293,7 @@ _Noreturn void exec_am_broadcast(int argc, char** argv,
     child_argv[14] = argv[1];
 
     // Copy the remaining arguments -2 for first binary and second api name:
-    memcpy(child_argv + extra_args, argv + 2, (argc-1) * sizeof(char*));
+    memcpy(child_argv + extra_args, argv + 2, (argc - 1) * sizeof(char *));
 
     // End with NULL:
     child_argv[argc + extra_args - 1] = NULL;
@@ -290,12 +316,15 @@ _Noreturn void exec_callback(int fd)
        function should be generic) */
     char errmsg[256];
     char *export_to_env = getenv("TERMUX_EXPORT_FD");
-    if (export_to_env && strncmp(export_to_env, "true", 4) == 0) {
+    if (export_to_env && strncmp(export_to_env, "true", 4) == 0)
+    {
         if (setenv("TERMUX_USB_FD", fds, true) == -1)
             perror("setenv");
         execl(PREFIX "/libexec/termux-callback", "termux-callback", NULL);
         sprintf(errmsg, "execl(\"" PREFIX "/libexec/termux-callback\")");
-    } else {
+    }
+    else
+    {
         execl(PREFIX "/libexec/termux-callback", "termux-callback", fds, NULL);
         sprintf(errmsg, "execl(\"" PREFIX "/libexec/termux-callback\", %s)", fds);
     }
@@ -303,12 +332,13 @@ _Noreturn void exec_callback(int fd)
     exit(1);
 }
 
-void generate_uuid(char* str) {
+void generate_uuid(char *str)
+{
     sprintf(str, "%x%x-%x-%x-%x-%x%x%x",
             /* 64-bit Hex number */
             arc4random(), arc4random(),
             /* 32-bit Hex number */
-            (uint32_t) getpid(),
+            (uint32_t)getpid(),
             /* 32-bit Hex number of the form 4xxx (4 is the UUID version) */
             ((arc4random() & 0x0fff) | 0x4000),
             /* 32-bit Hex number in the range [0x8000, 0xbfff] */
@@ -318,18 +348,21 @@ void generate_uuid(char* str) {
 }
 
 // Thread function which reads from stdin and writes to socket.
-void* transmit_stdin_to_socket(void* arg) {
-    int output_server_socket = *((int*) arg);
+void *transmit_stdin_to_socket(void *arg)
+{
+    int output_server_socket = *((int *)arg);
     struct sockaddr_un remote_addr;
     socklen_t addrlen = sizeof(remote_addr);
     int output_client_socket = accept(output_server_socket,
-                                      (struct sockaddr*) &remote_addr,
+                                      (struct sockaddr *)&remote_addr,
                                       &addrlen);
 
     ssize_t len;
     char buffer[1024];
-    while (len = read(STDIN_FILENO, &buffer, sizeof(buffer)), len > 0) {
-        if (write(output_client_socket, buffer, len) < 0) break;
+    while (len = read(STDIN_FILENO, &buffer, sizeof(buffer)), len > 0)
+    {
+        if (write(output_client_socket, buffer, len) < 0)
+            break;
     }
     // Close output socket on end of input:
     close(output_client_socket);
@@ -337,37 +370,24 @@ void* transmit_stdin_to_socket(void* arg) {
 }
 
 // Main thread function which reads from input socket and writes to stdout.
-int transmit_socket_to_stdout(int input_socket_fd) {
-    ssize_t len;
-    char buffer[1024];
-    char cbuf[256];
-    struct iovec io = { .iov_base = buffer, .iov_len = sizeof(buffer) };
-    struct msghdr msg = { 0 };
-    int fd = -1;  // An optional file descriptor received through the socket
-    msg.msg_iov = &io;
-    msg.msg_iovlen = 1;
-    msg.msg_control = cbuf;
-    msg.msg_controllen = sizeof(cbuf);
-    while ((len = recvmsg(input_socket_fd, &msg, 0)) > 0) {
-        struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msg);
-        if (cmsg && cmsg->cmsg_len == CMSG_LEN(sizeof(int))) {
-            if (cmsg->cmsg_type == SCM_RIGHTS) {
-                fd = *((int *) CMSG_DATA(cmsg));
-            }
-        }
-        // A file descriptor must be accompanied by a non-empty message,
-        // so we use "@" when we don't want any output.
-        if (fd != -1 && len == 1 && buffer[0] == '@') { len = 0; }
+int transmit_socket_to_stdout(int input_socket_fd)
+{
+    ssize_t len, buf_size = 1024;
+    char buffer[buf_size];
+    while (len = read(input_socket_fd, buffer, buf_size), len > 0)
+    {
         write(STDOUT_FILENO, buffer, len);
-        msg.msg_controllen = sizeof(cbuf);
     }
-    if (len < 0) perror("recvmsg()");
-    return fd;
+    if (len < 0)
+        perror("read from socket err");
+    return input_socket_fd;
 }
 
-int run_api_command(int argc, char **argv) {
+int run_api_command(int argc, char **argv)
+{
     // If only `--version` argument is passed
-    if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+    if (argc == 2 && strcmp(argv[1], "--version") == 0)
+    {
         fprintf(stdout, "%s\n", TERMUX_API_PACKAGE_VERSION);
         fflush(stdout);
         exit(0);
@@ -376,8 +396,7 @@ int run_api_command(int argc, char **argv) {
     // Do not transform children into zombies when they terminate:
     struct sigaction sigchld_action = {
         .sa_handler = SIG_DFL,
-        .sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT
-    };
+        .sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT};
     sigaction(SIGCHLD, &sigchld_action, NULL);
 
     char input_addr_str[100];  // This program reads from it.
@@ -386,60 +405,68 @@ int run_api_command(int argc, char **argv) {
     generate_uuid(input_addr_str);
     generate_uuid(output_addr_str);
 
-    struct sockaddr_un input_addr = { .sun_family = AF_UNIX };
-    struct sockaddr_un output_addr = { .sun_family = AF_UNIX };
+    struct sockaddr_un input_addr = {.sun_family = AF_UNIX};
+    struct sockaddr_un output_addr = {.sun_family = AF_UNIX};
     // Leave struct sockaddr_un.sun_path[0] as 0 and use the UUID
     // string as abstract linux namespace:
     strncpy(&input_addr.sun_path[1], input_addr_str, strlen(input_addr_str));
     strncpy(&output_addr.sun_path[1], output_addr_str, strlen(output_addr_str));
 
-    int input_server_socket = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
-    if (input_server_socket == -1) {
+    int input_server_socket = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (input_server_socket == -1)
+    {
         perror("socket()");
         return -1;
     }
-    int output_server_socket = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
-    if (output_server_socket == -1) {
+    int output_server_socket = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (output_server_socket == -1)
+    {
         perror("socket()");
         return -1;
     }
 
     int ret;
-    ret = bind(input_server_socket, (struct sockaddr*) &input_addr,
+    ret = bind(input_server_socket, (struct sockaddr *)&input_addr,
                sizeof(sa_family_t) + strlen(input_addr_str) + 1);
-    if (ret == -1) {
+    if (ret == -1)
+    {
         perror("bind(input)");
         return ret;
     }
 
-    ret = bind(output_server_socket, (struct sockaddr*) &output_addr,
+    ret = bind(output_server_socket, (struct sockaddr *)&output_addr,
                sizeof(sa_family_t) + strlen(output_addr_str) + 1);
-    if (ret == -1) {
+    if (ret == -1)
+    {
         perror("bind(output)");
         return ret;
     }
 
-    if (listen(input_server_socket, 1) == -1) {
+    if (listen(input_server_socket, 1) == -1)
+    {
         perror("listen()");
         return -1;
     }
 
-    if (listen(output_server_socket, 1) == -1) {
+    if (listen(output_server_socket, 1) == -1)
+    {
         perror("listen()");
         return -1;
     }
 
     pid_t fork_result = fork();
-    if (fork_result == -1) {
+    if (fork_result == -1)
+    {
         perror("fork()");
         return -1;
-    } else if (fork_result == 0)
+    }
+    else if (fork_result == 0)
         contact_plugin(argc, argv, input_addr_str, output_addr_str);
 
     struct sockaddr_un remote_addr;
     socklen_t addrlen = sizeof(remote_addr);
     int input_client_socket = accept(input_server_socket,
-                                     (struct sockaddr*) &remote_addr,
+                                     (struct sockaddr *)&remote_addr,
                                      &addrlen);
 
     pthread_t transmit_thread;
